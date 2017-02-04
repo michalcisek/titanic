@@ -1,42 +1,82 @@
-# VARIABLE DESCRIPTIONS:
-#   survival        Survival
-# (0 = No; 1 = Yes)
-# pclass          Passenger Class
-# (1 = 1st; 2 = 2nd; 3 = 3rd)
-# name            Name
-# sex             Sex
-# age             Age
-# sibsp           Number of Siblings/Spouses Aboard
-# parch           Number of Parents/Children Aboard
-# ticket          Ticket Number
-# fare            Passenger Fare
-# cabin           Cabin
-# embarked        Port of Embarkation
+# OPIS ZMIENNYCH:
+# survived        Przezycie
+# (0 = Nie; 1 = Tak)
+# Pclass          Klasa
+# (1 = pierwsza klasa; 2 = druga klasa; 3 = trzecia klasa)
+# Name            Imie i nazwisko
+# Sex             Plec
+# Age             Wiek
+# Sibsp           Liczba rodzenstwa i wspolmalzonkow na pokladzie 
+# Parch           Liczba rodzicow i dzieci na pokladzie
+# Ticket          Numer biletu
+# Fare            Oplata za przejazd
+# Cabin           Kabina
+# Embarked        Miejsce wejscia na poklad
 # (C = Cherbourg; Q = Queenstown; S = Southampton)
+# Titanic plynal trasa Southampton -> Cherbourg -> Queenstown -> Nowy Jork
 # 
-# SPECIAL NOTES:
-#   Pclass is a proxy for socio-economic status (SES)
-# 1st ~ Upper; 2nd ~ Middle; 3rd ~ Lower
-# 
-# Age is in Years; Fractional if Age less than One (1)
-# If the Age is Estimated, it is in the form xx.5
-# 
-# With respect to the family relation variables (i.e. sibsp and parch)
-# some relations were ignored.  The following are the definitions used
-# for sibsp and parch.
-# 
-# Sibling:  Brother, Sister, Stepbrother, or Stepsister of Passenger Aboard Titanic
-# Spouse:   Husband or Wife of Passenger Aboard Titanic (Mistresses and Fiances Ignored)
-# Parent:   Mother or Father of Passenger Aboard Titanic
-# Child:    Son, Daughter, Stepson, or Stepdaughter of Passenger Aboard Titanic
-# 
-# Other family relatives excluded from this study include cousins,
-# nephews/nieces, aunts/uncles, and in-laws.  Some children travelled
-# only with a nanny, therefore parch=0 for them.  As well, some
-# travelled with very close friends or neighbors in a village, however,
-# the definitions do not support such relations.
+# Jesli wiek ponizej roku to w postaci liczby po przecinku (np. 0.75)
+# Jesli wiek szacowany to jest postaci xx.5
 
+rm(list=ls())
+library(ggplot2)
+library(dplyr)
+library(mice)
 
-train<-read.csv("train.csv")
-test<-read.csv("test.csv")
-submission<-read.csv("gender_submission.csv")
+train<-read.csv("train.csv",stringsAsFactors = F)
+test<-read.csv("test.csv",stringsAsFactors = F)
+dane<-bind_rows(train,test)
+
+# Brakujace obserwacje ----------------------------------------------------
+apply(dane,2,function(x) sum(is.na(x)))
+
+# Dwie wartosci brakujace dla Embarked
+table(dane$Embarked)
+dane[dane$Embarked=="",]
+#gdzie pasezerowie wsiadali mozemy wywnioskowac na podstawie ceny zaplaconej za bilet. Najdrozsze bilety powinni placic
+#pasazerowie wsiadajacy w Cherbourg (najdluzsza odleglosc), a najtansze w Southampton
+
+#sprawdzamy jak rozkladaja sie ceny w zaleznosci od portu i klasy
+ggplot(dane[dane$Embarked!="",],aes(x=Embarked,y=Fare,fill=factor(Pclass)))+
+  geom_boxplot()+
+  theme_bw()+
+  geom_hline(yintercept = 80,colour="red",linetype="dashed")
+
+#widac ze mediana ceny biletu dla pierwszej klasy w Cherbourg jest rowna obserwowanej cenie biletow osob dla ktorych brakuje nam Embarked
+dane[dane$Embarked=="","Embarked"]<-"C"
+
+# 1 brakujacy dla Fare
+dane[is.na(dane$Fare),]
+
+#sprawdzamy gestosc oplaty za bilet dla pasazerow wsiadajacych w Southampton z 3 klasy
+ggplot(dane[dane$Embarked=="S" & dane$Pclass==3,], aes(x=Fare))+
+  geom_density()+
+  geom_vline(xintercept=median(dane[dane$Embarked=="S" & dane$Pclass==3,"Fare"],na.rm=T), linetype="dashed")+
+  theme_bw()
+
+#zauwazamy ze przypisanie mediany bedzie najrozsadniejsze
+dane[is.na(dane$Fare),"Fare"]<-median(dane[dane$Embarked=="S" & dane$Pclass==3,"Fare"],na.rm = T)
+
+# 263 brakujacych dla Age
+dane[is.na(dane$Age),]
+
+# Make variables factors into factors
+factor_vars <- c('PassengerId','Pclass','Sex','Embarked')
+
+dane[factor_vars] <- lapply(dane[factor_vars], function(x) as.factor(x))
+
+# Set a random seed
+set.seed(750)
+
+# Perform mice imputation, excluding certain less-than-useful variables:
+mice_mod <- mice(dane[, !names(dane) %in% c('PassengerId','Name','Ticket','Cabin','Survived')], method='rf')
+mice_output<-complete(mice_mod)
+
+dane$Age<-mice_output$Age
+
+rm(mice_mod,mice_output,factor_vars)
+
+train<-dane[1:891,]
+test<-dane[892:1309,2:12]
+
+rm(dane)
