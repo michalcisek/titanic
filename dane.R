@@ -77,6 +77,6 @@ dane$Age<-mice_output$Age
 rm(mice_mod,mice_output,factor_vars)
 
 train<-dane[1:891,]
-test<-dane[892:1309,2:12]
+test<-dane[892:1309,c(1,3:12)]
 
 rm(dane)
