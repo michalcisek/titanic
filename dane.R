@@ -76,7 +76,42 @@ dane$Age<-mice_output$Age
 
 rm(mice_mod,mice_output,factor_vars)
 
-train<-dane[1:891,]
-test<-dane[892:1309,c(1,3:12)]
 
-rm(dane)
+
+
+dane$Name %>%
+  regexpr("(?<=, ).*?(?=\\s)",.,perl = T)%>%
+  regmatches(dane$Name,.) -> dane$Title
+
+table(dane$Title)
+# Capt.
+# Col. - colonel
+# Don.
+# Dona.
+# Dr. - doktor
+# Jonkheer. - duński tytuł szlachecki
+# Lady.
+# Major.
+# Master.- chlopiec ponizej 13. roku zycia, rzadziej mezczyzna ktory jest kawalerem
+# Miss. - panny
+# Mlle. - mademoiselle - francuski odpowiednik Miss.
+# Mme. - francuski odpowiednik Mrs.
+# Mr. - mezczyzni (w kazdym wieku)
+# Mrs. - kobiety zamezne (obecnie i przeszlosci, czyli wdowa tez)
+# Ms. - forma bezpieczna - nie wskazuje na stan cywilny kobiety
+# Rev. - pastor
+# Sir.
+# the
+
+inne_tytuly<-c('Capt.','Col.','Don.','Dona.','Dr.','Jonkheer.','Lady.','Major.','Rev.','Sir.','the')
+dane$Title[dane$Title=='Ms.']<-"Miss."
+dane$Title[dane$Title=='Mme.']<-"Mrs."
+dane$Title[dane$Title=='Mlle.']<-"Miss."
+dane$Title[dane$Title %in% inne_tytuly]<-"Inne"
+
+dane$Title<-factor(dane$Title)
+
+train<-dane[1:891,]
+test<-dane[892:1309,c(1,3:13)]
+
+rm(dane,inne_tytuly)
