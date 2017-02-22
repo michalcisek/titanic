@@ -78,6 +78,7 @@ rm(mice_mod,mice_output,factor_vars)
 
 
 
+# Feature engineering -----------------------------------------------------
 
 dane$Name %>%
   regexpr("(?<=, ).*?(?=\\s)",.,perl = T)%>%
@@ -110,6 +111,22 @@ dane$Title[dane$Title=='Mlle.']<-"Miss."
 dane$Title[dane$Title %in% inne_tytuly]<-"Inne"
 
 dane$Title<-factor(dane$Title)
+
+
+#Survived
+prop.table(table(dane$Survived))
+
+#Pclass
+prop.table(table(dane$Pclass,dane$Survived),1)
+prop.table(table(dane$Pclass,dane$Survived),2)
+
+
+
+
+
+
+
+
 
 train<-dane[1:891,]
 test<-dane[892:1309,c(1,3:13)]
