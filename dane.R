@@ -123,7 +123,7 @@ prop.table(table(dane$Pclass,dane$Survived),2)
 
 
 
-
+dane$Survived<-factor(dane$Survived)
 
 
 
